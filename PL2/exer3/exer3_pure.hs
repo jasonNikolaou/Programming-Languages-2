@@ -29,8 +29,6 @@ readInts = map parse . C.words <$> C.getLine
   where parse s = let Just (n, _) = C.readInteger s
                   in fromIntegral n
 
-toTuple = (\(x:y:[]) -> (x,y))
-
 findMax = foldl' (\acc s -> let [_, b] = s in (max acc b)) 0
 
 takeElements max' p = take (fromIntegral max') (getDpList p)
@@ -52,7 +50,6 @@ build = foldr add_line mempty
 main = do
   (n:m:[]) <- readInts
   queries <- replicateM (fromIntegral n) readInts
-  -- let queries = map toTuple queries_
   let max' = (findMax queries) + 1
   let list = takeElements max' m
   let partialSums = constructSums list m
