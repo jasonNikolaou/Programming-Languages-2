@@ -29,7 +29,15 @@ readInts = map parse . C.words <$> C.getLine
   where parse s = let Just (n, _) = C.readInteger s
                   in fromIntegral n
 
-findMax = foldl' (\acc s -> let [_, b] = s in (max acc b)) 0
+readQueries :: IO [(Int,Int)]
+readQueries = queries
+ where parse s = let Just (n, _) = C.readInt s in n
+       allInts = map parse . C.words <$> (C.hGetContents System.IO.stdin)
+       split [] = []
+       split (a:b:xs) = (a,b) : split xs
+       queries = split <$> allInts
+
+findMax = foldl' (\acc s -> let (_, b) = s in (max acc b)) 0
 
 takeElements max' p = take (fromIntegral max') (getDpList p)
 
@@ -37,11 +45,9 @@ constructSums list p =
   let partialSums = tail $ zip ([-1..]) (scanl' (\acc x -> (acc+x) `mod` p) 0 list)
   in partialSums `seq` Map.fromList partialSums -- Map.fromAscList is slower for an unknown reason...
 
-solve m p [a, b] =
-  let Just dp_a = if a == 0 then Just 1 else Map.lookup (a-1) m
-      Just dp_b = Map.lookup b m
-      ans = (dp_b - dp_a) `mod` p
-  in ans
+solve m p (a, b) = let Just dp_a = if a == 0 then Just 1 else Map.lookup (a-1) m
+                       Just dp_b = Map.lookup b m
+                   in (dp_b - dp_a) `mod` p
 
 fastPrint answers = hPutBuilder stdout $ build  answers
 build = foldr add_line mempty
@@ -49,7 +55,7 @@ build = foldr add_line mempty
 
 main = do
   (n:m:[]) <- readInts
-  queries <- replicateM (fromIntegral n) readInts
+  queries <- readQueries
   let max' = (findMax queries) + 1
   let list = takeElements max' m
   let partialSums = constructSums list m

@@ -1,6 +1,5 @@
 import Data.Array ((!), listArray, elems)
 import Data.List (foldl', scanl')
-import Control.Monad (replicateM)
 import qualified Data.ByteString.Char8 as C
 import Data.ByteString.Lazy.Builder
 import Data.ByteString.Lazy.Builder.ASCII
@@ -14,34 +13,37 @@ dp n m = elems list
   where list = listArray (0, n) [f x | x <- [0..n]]
         f 0 = 2
         f 1 = 2
-        f x = let filteredSums = [s |s <- sums, x-s >= 0]
-              in  foldl' (\acc s -> (acc + list ! (x-s))) 0 filteredSums `mod` m
-
+        f x = let filteredSums = takeWhile (>=0) $ map (\s -> x-s) sums
+              in  foldl' (\acc s -> (acc + list ! s)) 0 filteredSums `mod` m
 
 constructSums list m = tail $ scanl' (\acc x -> (acc+x) `mod` m) 0 list
 
-solve sumsArr m [a,b] = let dp_a = if a == 0 then 1 else sumsArr ! (a-1)
-                            dp_b = sumsArr ! b
-                        in (dp_b - dp_a) `mod` m
+solve sumsArr m (0, b) = ((sumsArr ! b) - 1) `mod` m
+solve sumsArr m (a, b) = ((sumsArr ! b) - (sumsArr ! (a-1))) `mod` m
 
-findMax = foldl' (\acc s -> let [_, b] = s in (max acc b)) 0
+findMax = foldl' (\acc s -> let (_, b) = s in (max acc b)) 0
 
 readInts :: IO [Int64]
 readInts = map parse . C.words <$> C.getLine
  where parse s = let Just (n, _) = C.readInteger s
                  in fromIntegral n
 
-fastPrint answers = hPutBuilder stdout $ build  answers
-build = foldr add_line mempty
-  where add_line n b = int64Dec n <> charUtf8 '\n' <> b
+readQueries :: IO [(Int,Int)]
+readQueries = queries
+ where parse s = let Just (n, _) = C.readInt s in n
+       allInts = map parse . C.words <$> (C.hGetContents System.IO.stdin)
+       split [] = []
+       split (a:b:xs) = (a,b) : split xs
+       queries = split <$> allInts
 
 main = do
   (n:m:[]) <- readInts
-  queries <- replicateM (fromIntegral n) readInts
-  let max' = findMax(queries) + 1
+  queries <- readQueries
+  let max' = findMax queries
   let dpList = dp max' m
   let partialSums = constructSums dpList m
   let partialSumsArray = listArray (0, max') partialSums
   let answers = map (solve partialSumsArray m) queries
-
-  fastPrint answers
+  answers `seq` hPutBuilder stdout $ unlines_ $ map int64Dec answers
+  where
+    unlines_ = mconcat . map (<> charUtf8 '\n')
